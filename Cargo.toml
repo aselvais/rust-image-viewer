@@ -1,0 +1,11 @@
+[package]
+name = "rust-image-viewer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.36"
+egui = "0.36"
+image = "0.24"
+egui_extras = { version = "0.36", features = ["image"] }
+icrate = "0.1"
