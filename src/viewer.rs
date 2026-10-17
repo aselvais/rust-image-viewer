@@ -196,7 +196,12 @@ fn draw_image(
     avail: egui::Vec2,
     overflows: bool,
 ) {
-    let uri = format!("file://{}", path.to_string_lossy());
+    // egui_extras' file loader needs a well-formed `file://` URI. Build it via the
+    // shared helper so Windows paths (`C:\...`) turn into the `file:///C:/...` form
+    // the loader expects — a naive `format!("file://{}", ...)` yields `file://C:\...`,
+    // which the loader mangles into a bogus `\\C:\...` path and the image never loads
+    // (egui then shows its broken-image placeholder: a red `!` triangle).
+    let uri = crate::utils::image_uri(path);
 
     if overflows {
         // Let the image take its true displayed size so the ScrollArea can size

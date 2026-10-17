@@ -8,6 +8,14 @@ I've mainly used Hermes and qwen3.8:27b on a Mac M3 Max.
 
 I wanted to make a very simple and fast image viewer for windows as I was not happy with the current bloated offering.
 
+## What's new
+
+- **Windows image previews fixed** — thumbnails and the main viewer now load on
+  Windows. Before this they showed broken-image placeholders (the red `!` triangles)
+  because the `file://` image URI was built from a Windows path (`C:\…`), which
+  `egui_extras`' file loader couldn't resolve. Local paths are now normalised to a
+  valid `file:///C:/…` URI on Windows; MacOS and Linux were already fine.
+
 ## Download latest release
 
 - Mac OS : [rust-image-viewer-macos-universal.app.zip](dist/rust-image-viewer-macos-universal.app.zip) [10.9MB] (22.8MB unpacked)

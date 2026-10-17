@@ -92,11 +92,14 @@ impl Explorer {
                                 );
                                 clicked |= resp.clicked();
                             } else {
-                                // FileLoader resolves the raw path after trimming "file://";
-                                // it does NOT percent-decode, so pass the absolute path as-is.
+                                // Build the `file://` URI via the shared helper so Windows
+                                // paths resolve: the egui_extras loader needs
+                                // `file:///C:/...`, not the `file://C:\...` a naive
+                                // format! would produce (which it turns into `\\C:\...`
+                                // and fails to open — no thumbnail, red `!` placeholder).
                                 let path =
                                     std::fs::canonicalize(&entry.path).unwrap_or_else(|_| entry.path.clone());
-                                let uri = format!("file://{}", path.to_string_lossy());
+                                let uri = crate::utils::image_uri(&path);
                                 // Cap to the cell size (preserves aspect ratio, no upscale) so a
                                 // large photo shrinks to fit instead of overflowing and vanishing.
                                 let resp = cell.add(
