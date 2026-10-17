@@ -1,0 +1,92 @@
+[
+    {
+        "label": "sys",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sys",
+        "description": "sys",
+        "detail": "sys",
+        "documentation": {}
+    },
+    {
+        "label": "re",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "re",
+        "description": "re",
+        "detail": "re",
+        "documentation": {}
+    },
+    {
+        "label": "file_path",
+        "kind": 5,
+        "importPath": "fix_explorer",
+        "description": "fix_explorer",
+        "peekOfCode": "file_path = 'src/explorer.rs'\nwith open(file_path, 'r') as f:\n    content = f.read()\n# The pattern to search for\nold_pattern = r\"\"\"                        ui\\.vertical\\(\\|ui\\|\\) \\{\n                            let item_size = vec2\\(self\\.thumbnail_size, self\\.thumbnail_size\\);\n                            let response = ui\\.allocate_ui\\(item_size, \\|ui\\| \\{\n                                // Draw background\n                                ui\\.painter\\(\\)\\.rect_filled\\(ui\\.max_rect\\(\\), 2\\.0, Color32::from_gray\\(30\\)\\);\n                                if entry\\.file_type == FileType::Directory \\{",
+        "detail": "fix_explorer",
+        "documentation": {}
+    },
+    {
+        "label": "old_pattern",
+        "kind": 5,
+        "importPath": "fix_explorer",
+        "description": "fix_explorer",
+        "peekOfCode": "old_pattern = r\"\"\"                        ui\\.vertical\\(\\|ui\\|\\) \\{\n                            let item_size = vec2\\(self\\.thumbnail_size, self\\.thumbnail_size\\);\n                            let response = ui\\.allocate_ui\\(item_size, \\|ui\\| \\{\n                                // Draw background\n                                ui\\.painter\\(\\)\\.rect_filled\\(ui\\.max_rect\\(\\), 2\\.0, Color32::from_gray\\(30\\)\\);\n                                if entry\\.file_type == FileType::Directory \\{\n                                    ui\\.painter\\(\\)\\.text\\(\n                                        ui\\.max_rect\\(\\)\\.center\\(\\),\n                                        Align2::CENTER_CENTER,\n                                        \"📁\",",
+        "detail": "fix_explorer",
+        "documentation": {}
+    },
+    {
+        "label": "new_content",
+        "kind": 5,
+        "importPath": "fix_explorer",
+        "description": "fix_explorer",
+        "peekOfCode": "new_content = r\"\"\"                        ui.vertical(|ui| {\n                            let item_size = vec2(self.thumbnail_size, self.thumbnail_size);\n                            // 1. Allocate the space for the thumbnail\n                            let (rect, response) = ui.allocate_at_least(item_size, egui::Sense::click());\n                            // 2. Draw the background/container\n                            ui.painter().rect_filled(rect, 2.0, Color32::from_gray(30));\n                            // 3. Draw the content (icon or image)\n                            if entry.file_type == FileType::Directory {\n                                ui.painter().text(\n                                    rect.center(),",
+        "detail": "fix_explorer",
+        "documentation": {}
+    },
+    {
+        "label": "lines",
+        "kind": 5,
+        "importPath": "fix_explorer",
+        "description": "fix_explorer",
+        "peekOfCode": "lines = content.splitlines()\nstart_idx = -1\nend_idx = -1\nfor i, line in enumerate(lines):\n    if \"let response = ui.allocate_ui(item_size, |ui|\" in line:\n        start_idx = i - 2 # To include the ui.vertical line\n    if \"ui.label(RichText::new(&entry.name).size(12.0));\" in line:\n        end_idx = i + 2 # To include the }); line\nif start_idx != -1 and end_idx != -1:\n    print(f\"Found start: {start_idx}, end: {end_idx}\")",
+        "detail": "fix_explorer",
+        "documentation": {}
+    },
+    {
+        "label": "start_idx",
+        "kind": 5,
+        "importPath": "fix_explorer",
+        "description": "fix_explorer",
+        "peekOfCode": "start_idx = -1\nend_idx = -1\nfor i, line in enumerate(lines):\n    if \"let response = ui.allocate_ui(item_size, |ui|\" in line:\n        start_idx = i - 2 # To include the ui.vertical line\n    if \"ui.label(RichText::new(&entry.name).size(12.0));\" in line:\n        end_idx = i + 2 # To include the }); line\nif start_idx != -1 and end_idx != -1:\n    print(f\"Found start: {start_idx}, end: {end_idx}\")\n    new_lines = lines[:start_idx] + new_content.splitlines() + lines[end_idx:]",
+        "detail": "fix_explorer",
+        "documentation": {}
+    },
+    {
+        "label": "end_idx",
+        "kind": 5,
+        "importPath": "fix_explorer",
+        "description": "fix_explorer",
+        "peekOfCode": "end_idx = -1\nfor i, line in enumerate(lines):\n    if \"let response = ui.allocate_ui(item_size, |ui|\" in line:\n        start_idx = i - 2 # To include the ui.vertical line\n    if \"ui.label(RichText::new(&entry.name).size(12.0));\" in line:\n        end_idx = i + 2 # To include the }); line\nif start_idx != -1 and end_idx != -1:\n    print(f\"Found start: {start_idx}, end: {end_idx}\")\n    new_lines = lines[:start_idx] + new_content.splitlines() + lines[end_idx:]\n    with open(file_path, 'w') as f:",
+        "detail": "fix_explorer",
+        "documentation": {}
+    },
+    {
+        "label": "file_path",
+        "kind": 5,
+        "importPath": "patch_explorer",
+        "description": "patch_explorer",
+        "peekOfCode": "file_path = \"src/explorer.rs\"\nwith open(file_path, \"r\") as f:\n    lines = f.readlines()\n# Lines are 0-indexed in Python\n# 112 -> 111\n# 113 -> 112\n# Original lines 112 and 113:\n# 112 |                                     let mut child_ui = ui.child_ui(rect, ui.layer_id());\n# 113 |                                     child_ui.add(egui::Image::from_texture(&tex).shrink_to_fit());\n# We want to replace them with:",
+        "detail": "patch_explorer",
+        "documentation": {}
+    },
+    {
+        "label": "new_lines",
+        "kind": 5,
+        "importPath": "patch_explorer",
+        "description": "patch_explorer",
+        "peekOfCode": "new_lines = lines[:111] + [\n    \"                                     ui.allocate_ui(rect.size(), |ui| {\\n\",\n    \"                                         ui.add(egui::Image::from_texture(&tex).shrink_to_fit());\\n\",\n    \"                                     });\\n\"\n] + lines[113:]\nwith open(file_path, \"w\") as f:\n    f.writelines(new_lines)\nprint(\"Successfully patched src/explorer.rs\")",
+        "detail": "patch_explorer",
+        "documentation": {}
+    }
+]

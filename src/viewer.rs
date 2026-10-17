@@ -32,6 +32,10 @@ impl Viewer {
                     action = Some(ViewerAction::Close);
                 }
                 ui.label(format!("Viewing: {}", self.current_image.file_name().unwrap_or_default().to_string_lossy()));
+                ui.separator();
+                if ui.button("Details (⌘I)").clicked() {
+                    action = Some(ViewerAction::ToggleMetadata);
+                }
             });
 
             ui.centered_and_justified(|ui| {
@@ -51,4 +55,5 @@ pub enum ViewerAction {
     Next,
     Previous,
     Close,
+    ToggleMetadata,
 }

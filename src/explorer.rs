@@ -1,13 +1,11 @@
 use crate::utils::{FileInfo, FileType};
 use std::path::PathBuf;
-use std::collections::HashMap;
-use egui::{Ui, ScrollArea, Grid, Slider, vec2, Align2, Color32, FontId, RichText};
+use egui::{vec2, Color32, RichText, ScrollArea, Slider, Ui};
 
 pub struct Explorer {
     pub current_dir: PathBuf,
     pub entries: Vec<FileInfo>,
     pub thumbnail_size: f32,
-    pub texture_cache: HashMap<PathBuf, egui::TextureHandle>,
 }
 
 impl Explorer {
@@ -17,14 +15,12 @@ impl Explorer {
             current_dir: initial_dir,
             entries,
             thumbnail_size: 128.0,
-            texture_cache: HashMap::new(),
         }
     }
 
     pub fn change_dir(&mut self, new_dir: PathBuf) {
         self.current_dir = new_dir;
         self.entries = crate::utils::list_directory(&self.current_dir);
-        self.texture_cache.clear();
     }
 
     pub fn go_up(&mut self) {
@@ -51,103 +47,85 @@ impl Explorer {
 
         ScrollArea::vertical().show(ui, |ui| {
             let spacing = 16.0;
-            let available_width = ui.available_width();
+            ui.spacing_mut().item_spacing = vec2(spacing, spacing);
 
-            // Filter entries: only directories and images, and skip hidden files (starting with ".")
-            let filtered_entries: Vec<&FileInfo> = self.entries.iter()
+            // Filter entries: only directories and images, and skip hidden files (starting with ".").
+            let filtered_entries: Vec<&FileInfo> = self
+                .entries
+                .iter()
                 .filter(|entry| {
-                    let is_hidden = entry.name.starts_with(".");
-                    let is_valid_type = entry.file_type == FileType::Directory || crate::utils::is_image(&entry.path);
+                    let is_hidden = entry.name.starts_with('.');
+                    let is_valid_type =
+                        entry.file_type == FileType::Directory || crate::utils::is_image(&entry.path);
                     !is_hidden && is_valid_type
                 })
                 .collect();
 
-            let num_cols = (available_width / (self.thumbnail_size + spacing)).floor().max(1.0) as usize;
+            // Each item is a fixed-size cell (thumbnail on top, name below).
+            //
+            // We deliberately avoid egui's `Grid`: Grid caches the previous
+            // frame's column widths/row heights and uses them to *predict* cell
+            // placement. With async image loads the cell size swings between the
+            // 24px loading fallback and the real thumbnail size, so the cached
+            // positions lag a frame and alternating cells get allocated on top of
+            // each other -- that is the "every other thumbnails missing" bug.
+            // `horizontal_wrapped` recomputes positions every frame with no cache,
+            // and a fixed cell size keeps the layout stable.
+            let thumb = self.thumbnail_size;
+            let item = vec2(thumb, thumb + 20.0);
 
-            Grid::new("explorer_grid")
-                .spacing([spacing, spacing])
-                .min_col_width(self.thumbnail_size)
-                .show(ui, |ui| {
-                    for chunk in filtered_entries.chunks(num_cols) {
-                        // 1. Draw the thumbnails row
-                        for entry in chunk {
-                            let item_size = vec2(self.thumbnail_size, self.thumbnail_size);
-                            let (rect, response) = ui.allocate_at_least(item_size, egui::Sense::click());
+            ui.horizontal_wrapped(|ui| {
+                for entry in &filtered_entries {
+                    let _ = ui.allocate_ui_with_layout(
+                        item,
+                        egui::Layout::top_down(egui::Align::Center),
+                        |cell| {
+                            // Fill the whole cell with a dark background.
+                            cell.painter()
+                                .rect_filled(cell.max_rect(), 2.0, Color32::from_gray(30));
 
-                            // Draw background
-                            ui.painter().rect_filled(rect, 2.0, Color32::from_gray(30));
-
+                            let mut clicked = false;
                             if entry.file_type == FileType::Directory {
-                                ui.painter().text(
-                                    rect.center(),
-                                    Align2::CENTER_CENTER,
-                                    "📁",
-                                    FontId::proportional(self.thumbnail_size * 0.5),
-                                    Color32::WHITE,
+                                let resp = cell.add(
+                                    egui::Label::new(egui::RichText::new("📁").size(thumb * 0.5))
+                                        .sense(egui::Sense::click()),
                                 );
-                            } else if crate::utils::is_image(&entry.path) {
-                                let texture = if let Some(tex) = self.texture_cache.get(&entry.path) {
-                                    Some(tex.clone())
-                                } else {
-                                    if let Ok(img) = image::open(&entry.path) {
-                                        let size = [img.width() as usize, img.height() as usize];
-                                        let image_buffer = img.to_rgba8();
-                                        let color_image = egui::ColorImage::from_rgba_unmultiplied(
-                                            size,
-                                            &image_buffer,
-                                        );
-                                        let tex = ui.ctx().load_texture(
-                                            entry.path.to_string_lossy().to_string(),
-                                            color_image,
-                                            Default::default(),
-                                        );
-                                        self.texture_cache.insert(entry.path.clone(), tex.clone());
-                                        Some(tex)
-                                    } else {
-                                        None
-                                    }
-                                };
-
-                                if let Some(tex) = texture {
-                                     ui.allocate_ui(rect.size(), |ui| {
-                                         ui.add(egui::Image::from_texture(&tex).shrink_to_fit());
-                                     });
-                                } else {
-                                    ui.painter().text(
-                                        rect.center(),
-                                        Align2::CENTER_CENTER,
-                                        "❌",
-                                        FontId::proportional(self.thumbnail_size * 0.5),
-                                        Color32::WHITE,
-                                    );
-                                }
+                                clicked |= resp.clicked();
+                            } else {
+                                // FileLoader resolves the raw path after trimming "file://";
+                                // it does NOT percent-decode, so pass the absolute path as-is.
+                                let path =
+                                    std::fs::canonicalize(&entry.path).unwrap_or_else(|_| entry.path.clone());
+                                let uri = format!("file://{}", path.to_string_lossy());
+                                // Cap to the cell size (preserves aspect ratio, no upscale) so a
+                                // large photo shrinks to fit instead of overflowing and vanishing.
+                                let resp = cell.add(
+                                    egui::Image::from_uri(uri.as_str())
+                                        .max_size(vec2(thumb, thumb))
+                                        .sense(egui::Sense::click())
+                                        .alt_text(entry.name.clone()),
+                                );
+                                clicked |= resp.clicked();
                             }
 
-                            if response.clicked() {
+                            // Filename under the thumbnail.
+                            let name_resp = cell.add(
+                                egui::Label::new(RichText::new(&entry.name).size(12.0))
+                                    .sense(egui::Sense::click()),
+                            );
+                            clicked |= name_resp.clicked();
+
+                            if clicked {
                                 if entry.file_type == FileType::Directory {
                                     action = Some(ExplorerAction::EnterDirectory(entry.path.clone()));
                                 } else {
                                     action = Some(ExplorerAction::OpenFile(entry.path.clone()));
                                 }
                             }
-                        }
-                        ui.end_row();
-
-                        // 2. Draw the names row
-                        for entry in chunk {
-                            let name_label = RichText::new(&entry.name).size(12.0);
-                            let label_res = ui.label(name_label);
-                            if label_res.clicked() {
-                                if entry.file_type == FileType::Directory {
-                                    action = Some(ExplorerAction::EnterDirectory(entry.path.clone()));
-                                } else {
-                                    action = Some(ExplorerAction::OpenFile(entry.path.clone()));
-                                }
-                            }
-                        }
-                        ui.end_row();
-                    }
-                });
+                        },
+                    );
+                }
+            });
         });
 
         action
@@ -159,4 +137,3 @@ pub enum ExplorerAction {
     EnterDirectory(PathBuf),
     OpenFile(PathBuf),
 }
-

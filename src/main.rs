@@ -1,5 +1,6 @@
 mod app;
 mod explorer;
+mod metadata;
 mod utils;
 mod viewer;
 

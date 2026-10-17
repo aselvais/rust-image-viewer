@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 eframe = "0.36"
 egui = "0.36"
-image = "0.24"
-egui_extras = { version = "0.36", features = ["image"] }
+image = { version = "0.25", features = ["png", "jpeg", "bmp", "gif", "webp"] }
+egui_extras = { version = "0.36", features = ["image", "file"] }
 icrate = "0.1"
+kamadak-exif = "0.6.1"
