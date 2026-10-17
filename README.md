@@ -10,6 +10,12 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
 
 ## What's new
 
+- **Linux build added** — there is now a native Linux release
+  (`x86_64-unknown-linux-gnu`, glibc) via `scripts/build-linux.sh` plus a
+  `build-linux` CI job. Because `winit`/`wgpu` load X11/Wayland/GL/Vulkan
+  *dynamically at run time*, a Linux binary needs only glibc plus a desktop
+  environment to run — no MSVC/Windows-SDK toolchain (unlike Windows) and no Apple
+  re-signing (unlike macOS).
 - **Windows image previews fixed** — thumbnails and the main viewer now load on
   Windows. Before this they showed broken-image placeholders (the red `!` triangles)
   because the `file://` image URI was built from a Windows path (`C:\…`), which
@@ -18,6 +24,7 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
 
 ## Download latest release
 
+- Linux: [rust-image-viewer-linux-x86_64.zip](dist/rust-image-viewer-linux-x86_64.zip) / [rust-image-viewer-linux-x86_64.tar.gz](dist/rust-image-viewer-linux-x86_64.tar.gz) [8.0MB] (17.8MB unpacked, glibc x86_64)
 - Mac OS : [rust-image-viewer-macos-universal.app.zip](dist/rust-image-viewer-macos-universal.app.zip) [10.9MB] (22.8MB unpacked)
 - Windows: [rust-image-viewer-win-x64.zip](dist/rust-image-viewer-win-x64.zip) [6.4MB] (13.9MB unpacked)
 
@@ -52,7 +59,9 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
 
 - simple image resize (and bulk resize)
 - Better design for the GUI
-- Build for linux
+- Register the Linux `.desktop` icon / "Open With" associations *system-wide*
+  (a no-root, per-user install snippet is already bundled in the Linux
+  tarball/zip; a distro-packaged `.desktop` is a nice-to-have follow-up)
 - ...
 
 ## Technologies Used
@@ -61,6 +70,9 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
 - [egui / eframe](https://github.com/emilk/egui): immediate-mode GUI and its desktop frontend.
 - [image](https://github.com/image-rs/image): PNG, JPEG, BMP, GIF, WebP decoding.
 - [kamadak-exif](https://github.com/retep0804/kamadak-exif): EXIF metadata parsing.
+- [winit](https://github.com/rust-windowing/winit) + [wgpu](https://github.com/gfx-rs/wgpu):
+  windowing + GPU rendering. On Linux, X11/Wayland/GL/Vulkan are loaded at run time,
+  which is why the Linux build is so easy (no native graphics SDK).
 
 ## Prerequisites
 
@@ -68,14 +80,19 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
-- **macOS 12+** or **Windows 10+** for the GUI (uses the Metal / D3D backends).
+- **macOS 12+**, **Windows 10+**, or **Linux (glibc)** for the GUI — the GUI uses
+  the Metal / D3D12 / GL/Vulkan backends and X11 or Wayland for windows.
 - A native C/C++ linker is required (Xcode command-line tools on macOS; the
-  "Desktop development with C++" workload on Windows).
+  "Desktop development with C++" workload on Windows; `gcc` or `clang` on Linux).
 
 ```bash
 # macOS: enable the system linker
 xcode-select --install
 ```
+
+On Debian/Ubuntu you also need the (build-time-only) X11/Wayland/GL dev headers —
+covered in the **Linux** build section below. At **run** time a normal desktop
+environment is enough; the graphics libs themselves are loaded dynamically.
 
 ## Getting Started
 
@@ -138,6 +155,52 @@ identity and notarize (ad-hoc signing is fine for local testing only).
 > Explorer and its "Open With" file association in the Windows registry is a
 > follow-up (no change here); drag-and-drop and the in-app icon already work.
 
+### Linux
+
+Unlike Windows, there is **no hard blocker** to building for Linux: the graphics
+backend (`wgpu`) and the windowing stack (`winit`) *load* X11, Wayland,
+GL/GLX/EGL/Vulkan and the platform libraries at **run time** (via
+`libloading`/`pkg-config`), so a build only needs a C linker plus those
+libraries — no MSVC/Windows-SDK (as Windows needs) and no Apple re-signing (as
+macOS needs). We therefore ship a **glibc** `x86_64-unknown-linux-gnu` binary: a
+dynamic glibc build runs on essentially every modern desktop, whereas a fully
+static `musl` build fights `winit`'s GL/Wayland code paths.
+
+```bash
+# Native build on Debian/Ubuntu (or any glibc box) — install the dev headers first:
+sudo apt-get install -y build-essential pkg-config \
+  libx11-dev libxkbcommon-dev libwayland-dev libgl1-mesa-dev
+cargo build --release
+# -> target/release/rust-image-viewer          (a stripped glibc x86_64 ELF)
+
+# One command: build + bundle a .desktop launcher + icon + zip/tarball into ./dist/
+bash scripts/build-linux.sh            # native x86_64 (default)
+bash scripts/build-linux.sh aarch64    # aarch64-unknown-linux-gnu
+# -> dist/rust-image-viewer-linux-x86_64/rust-image-viewer
+# -> dist/rust-image-viewer-linux-x86_64/Rust Image Viewer.desktop
+# -> dist/rust-image-viewer-linux-x86_64/{AppIcon.png,README.txt}
+# -> dist/rust-image-viewer-linux-x86_64.zip  /  ...tar.gz
+```
+
+The script **detects the host**: on a Linux machine it runs a plain
+`cargo build`; off Linux (an ARM/Intel macOS, another box, or a CI runner) it
+cross-compiles with `cargo-zigbuild` — zig supplies the glibc sysroot the linker
+needs, exactly as `scripts/build-windows-cross.sh` does for the Windows build.
+(Run it off-Linux with `zig` + `cargo install cargo-zigbuild` available — the same
+prerequisites as the cross Windows build.) The package ships a self-explanatory
+`README.txt` with a copy-paste, **no-root** `$HOME/.local` install that also
+rewrites the `.desktop`'s `Exec`/`Icon` to your user, plus the bundled
+`AppIcon.png`, so a Linux user can extract, run, and register the app in the menu
+without `sudo`.
+
+> **For an official, broadly-compatible release, build *on* Linux.** The
+> `build-linux` job in `.github/workflows/release.yml` runs
+> `scripts/build-linux.sh` on an `ubuntu-latest` runner, where the graphics dev
+> headers are guaranteed present and the binary links the runner's glibc — the most
+> portable baseline. A cross-compiled binary also runs on most Linux systems, but
+> it assumes a relatively new glibc, so prefer the CI / native Linux build for
+> distribution.
+
 ### Windows (build natively on a Windows machine)
 
 > The graphics backend (`wgpu`) links the Win32 Direct3D12 backend, which needs the
@@ -161,14 +224,18 @@ cargo build --release
 A ready-to-use workflow is at `.github/workflows/release.yml`:
 
 ```bash
-# Build native, self-contained artifacts for Windows + macOS and attach them to a
-# GitHub release. Push a version tag to trigger it automatically:
+# Build native, self-contained artifacts for Windows + macOS + Linux and attach
+# them to a GitHub release. Push a version tag to trigger it automatically:
 git tag v0.1.0 && git push origin v0.1.0
 # (or trigger it manually: Actions → "Release" → "Run workflow".)
 ```
 
 It produces, per tag:
 
+- `rust-image-viewer-linux-x86_64.zip` / `…tar.gz` — the glibc `x86_64` Linux
+  binary, bundled with its `.desktop` launcher and `AppIcon.png`. Runs with just a
+  desktop environment (X11/Wayland/GL/Vulkan are loaded at run time, so no
+  graphics dev packages are needed by end users).
 - `rust-image-viewer-win-x64.zip` — the x64 Windows exe **with the MSVC/UCRT
   runtime DLLs bundled** (via `deploy`) so it runs on a bare Windows install.
 - `rust-image-viewer-macos-universal.app.zip` — the universal `.app` (arm64 +
@@ -189,12 +256,19 @@ cargo test
 - `src/explorer.rs` — the directory/file explorer.
 - `src/viewer.rs` — the image viewer (toolbar, image rendering, zoom, mouse-wheel).
 - `src/metadata.rs` — builds the image + EXIF metadata shown in the Details panel.
-- `src/utils.rs` — shared helpers (directory listing, etc.).
+- `src/utils.rs` — shared helpers (directory listing, the cross-platform `file://` URI normaliser).
 - `src/explorer_new.rs` — an experimental explorer; **not compiled** (not declared in `main.rs`).
 - `scripts/build-macos.sh` — builds and packages the self-contained universal macOS `.app`.
+- `scripts/build-linux.sh` — builds and packages the self-contained Linux glibc
+  binary (`.desktop` + icon + zip/tarball); cross-compiles via `cargo-zigbuild`
+  when run off a Linux host.
+- `scripts/build-windows-cross.sh` — cross-compiles the Windows exe on macOS/Linux
+  via `cargo-zigbuild`.
+- `scripts/build-windows.ps1` — the native Windows build/packaging script (for a
+  Windows host or the `windows-latest` CI runner).
 - `scripts/make-icon.sh` — regenerates the app icons (`png`/`icns`/`ico`) from `assets/AppIcon.svg`.
-- `assets/` — the custom app icon (`AppIcon.svg` artwork + generated `png`/`icns`/`ico`).
-- `.github/workflows/release.yml` — CI that builds self-contained Windows + macOS release artifacts.
+- `assets/` — the custom app icon (`AppIcon.svg` artwork + generated `png`/`icns`/`ico`, plus `AppIcon.png` embedded at compile time as the window icon).
+- `.github/workflows/release.yml` — CI that builds self-contained **Linux + Windows + macOS** release artifacts.
 
 ## License
 

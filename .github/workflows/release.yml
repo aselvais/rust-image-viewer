@@ -1,8 +1,9 @@
 name: Release
 
-# Build native, self-contained release artifacts for Windows + macOS on push to a
-# v* tag, or on manual dispatch. macOS reuses the same, locally-tested logic as
-# scripts/build-macos.sh.
+# Build native, self-contained release artifacts for Windows + macOS + Linux on
+# push to a v* tag, or on manual dispatch. Each platform reuses the same,
+# locally-tested logic as its scripts/ build script (build-macos.sh,
+# build-windows.ps1, build-linux.sh).
 on:
   push:
     tags: ["v*"]
@@ -54,9 +55,37 @@ jobs:
           name: rust-image-viewer-macos-universal
           path: dist/rust-image-viewer-macos-universal.app.zip
 
+  build-linux:
+    runs-on: ubuntu-latest        # native target is x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GUI dev libraries (X11 / Wayland / GL)
+        # winit / wgpu reference the graphics libs via pkg-config + libloading, so
+        # the dev packages must be present at build time even though the binary
+        # loads them dynamically at run time (no MSVC/Windows-SDK needed — unlike
+        # the Windows job, a Linux build is a plain `cargo build`).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config \
+            libx11-dev libx11-xcb-dev libxrandr-dev libxi-dev \
+            libxkbcommon-dev libwayland-dev libgl1-mesa-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: Build self-contained release + package (same logic as scripts/build-linux.sh)
+        run: bash scripts/build-linux.sh x86_64
+      - name: Upload (zip + tarball)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-image-viewer-linux-x86_64
+          path: |
+            dist/rust-image-viewer-linux-x86_64.zip
+            dist/rust-image-viewer-linux-x86_64.tar.gz
+
   # Combine artifacts into a GitHub Release (only when triggered by a tag).
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos, build-linux]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
@@ -67,5 +96,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.zip
+          files: |
+            artifacts/*.zip
+            artifacts/*.tar.gz
           fail_if_no_release_files: false
