@@ -8,5 +8,14 @@ eframe = "0.36"
 egui = "0.36"
 image = { version = "0.25", features = ["png", "jpeg", "bmp", "gif", "webp"] }
 egui_extras = { version = "0.36", features = ["image", "file"] }
-icrate = "0.1"
 kamadak-exif = "0.6.1"
+
+# Optimized, as-small-as-reasonable, self-contained release binaries.
+[profile.release]
+opt-level = 2
+lto = true
+codegen-units = 1
+strip = true
+# `icrate` was a dead, macOS-only dependency (never `use`d anywhere) and blocked
+# non-Apple builds. Remove it and add a real macOS dep only if it ever gets used.
+

@@ -1,0 +1,71 @@
+name: Release
+
+# Build native, self-contained release artifacts for Windows + macOS on push to a
+# v* tag, or on manual dispatch. macOS reuses the same, locally-tested logic as
+# scripts/build-macos.sh.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest        # host default target is x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build (MSVC, release)
+        run: cargo build --release
+      # egui's wgpu/Direct3D backend links the MSVC C/C++ runtime dynamically.
+      # `deploy` copies the required runtime DLLs next to the exe so the folder
+      # is self-contained (runs on a bare install, no VC++ Redistributable).
+      - name: Bundle MSVC/UCRT runtime (self-contained)
+        uses: deluan/deploy@v1
+        with:
+          target-dir: target/release
+      - name: Package exe + runtime DLLs into a zip
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item target/release/rust-image-viewer.exe out/
+          Get-ChildItem target/release -Recurse -Include *.dll -File |
+            ForEach-Object { Copy-Item $_.FullName out/ }
+          Compress-Archive -Path out/* -DestinationPath rust-image-viewer-win-x64.zip
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-image-viewer-win-x64
+          path: rust-image-viewer-win-x64.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin   # so the script can lipo a universal binary
+      - name: Build universal .app + zip (same logic as scripts/build-macos.sh)
+        run: bash scripts/build-macos.sh
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-image-viewer-macos-universal
+          path: dist/rust-image-viewer-macos-universal.app.zip
+
+  # Combine artifacts into a GitHub Release (only when triggered by a tag).
+  release:
+    needs: [build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          fail_if_no_release_files: false
