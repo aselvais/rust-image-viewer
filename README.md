@@ -6,12 +6,15 @@ immediate-mode GUI framework with an optional `EXIF` / metadata inspector.
 ## Features
 
 - **File Explorer**: navigate directories to find images.
-- **Image Viewer**: flip through images with the arrow keys; `⌘/Ctrl + I` toggles
-  an in-window details panel.
+- **Image Viewer**: flip through images with the arrow keys **or** on-screen
+  **◀ Prev / Next ▶** buttons in the viewer's top toolbar.
+- **Zoom**: a zoom slider, **Fit screen** and **100%** buttons, plus mouse-wheel
+  zoom and trackpad pinch (scroll up = zoom in, scroll down = zoom out). When the
+  image is larger than the fit window, scroll bars appear so you can pan it.
 - **Details panel**: shows format, dimensions, megapixels, colour/channels,
   bit depth, file size, last-modified time, and any EXIF metadata — rendered
   **inside** the main window (no separate OS window).
-- **Fast and lightweight**: Rust + `egui` (v2/Vello, GPU-accelerated) with
+- **Fast and lightweight**: Rust + `egui` (GPU-accelerated via wgpu) with
   optimized, stripped release binaries.
 
 ## Technologies Used
@@ -128,7 +131,7 @@ cargo test
 - `src/main.rs` — entry point (native window loop, initial directory).
 - `src/app.rs` — main application state; hosts the file explorer, the viewer, and the in-window Details panel.
 - `src/explorer.rs` — the directory/file explorer.
-- `src/viewer.rs` — the image viewer (navigation, image rendering).
+- `src/viewer.rs` — the image viewer (toolbar, image rendering, zoom, mouse-wheel).
 - `src/metadata.rs` — builds the image + EXIF metadata shown in the Details panel.
 - `src/utils.rs` — shared helpers (directory listing, etc.).
 - `src/explorer_new.rs` — an experimental explorer; **not compiled** (not declared in `main.rs`).

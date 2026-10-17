@@ -41,9 +41,9 @@ impl eframe::App for ImageViewerApp {
         // Global shortcut: Cmd/Ctrl + I toggles the details panel (only when an image is open).
         let toggle = ui.input(|i| i.key_pressed(egui::Key::I) && i.modifiers.command);
 
-        egui::CentralPanel::default().show(ui, |ui| {
-            match &mut self.mode {
-                AppMode::Idle => {
+        match &mut self.mode {
+            AppMode::Idle => {
+                egui::CentralPanel::default().show(ui, |ui| {
                     if let Some(action) = self.explorer.ui(ui) {
                         match action {
                             ExplorerAction::EnterDirectory(path) => {
@@ -64,45 +64,63 @@ impl eframe::App for ImageViewerApp {
                             ExplorerAction::None => {}
                         }
                     }
-                }
-                AppMode::Viewing(viewer, images) => {
-                    if let Some(action) = viewer.ui(ui) {
-                        match action {
-                            ViewerAction::Next => {
-                                let current_path = viewer.current_image.clone();
-                                if let Some(idx) = images.iter().position(|p| p == &current_path) {
-                                    if idx + 1 < images.len() {
-                                        viewer.current_image = images[idx + 1].clone();
-                                    }
-                                }
-                            }
-                            ViewerAction::Previous => {
-                                let current_path = viewer.current_image.clone();
-                                if let Some(idx) = images.iter().position(|p| p == &current_path) {
-                                    if idx > 0 {
-                                        viewer.current_image = images[idx - 1].clone();
-                                    }
-                                }
-                            }
-                            ViewerAction::Close => {
-                                self.mode = AppMode::Idle;
-                                self.show_metadata = false;
-                            }
-                            ViewerAction::ToggleMetadata => {
-                                self.show_metadata = !self.show_metadata;
+                });
+            }
+            AppMode::Viewing(viewer, images) => {
+                // A top menu-bar toolbar, then the image in the central panel.
+                let mut action: Option<ViewerAction> = None;
+
+                egui::Panel::top("viewer_menu").show(ui, |ui| {
+                    if let Some(a) = viewer.menu_bar(ui) {
+                        action = Some(a);
+                    }
+                });
+                egui::CentralPanel::default().show(ui, |ui| {
+                    // Always call image_area so the image is drawn; only take its
+                    // (keyboard) action when the menu bar didn't already act.
+                    let img_action = viewer.image_area(ui);
+                    if action.is_none() {
+                        if let Some(a) = img_action {
+                            action = Some(a);
+                        }
+                    }
+                });
+
+                match action {
+                    Some(ViewerAction::Next) => {
+                        let current_path = viewer.current_image.clone();
+                        if let Some(idx) = images.iter().position(|p| p == &current_path) {
+                            if idx + 1 < images.len() {
+                                viewer.current_image = images[idx + 1].clone();
                             }
                         }
                     }
+                    Some(ViewerAction::Previous) => {
+                        let current_path = viewer.current_image.clone();
+                        if let Some(idx) = images.iter().position(|p| p == &current_path) {
+                            if idx > 0 {
+                                viewer.current_image = images[idx - 1].clone();
+                            }
+                        }
+                    }
+                    Some(ViewerAction::Close) => {
+                        self.mode = AppMode::Idle;
+                        self.show_metadata = false;
+                    }
+                    Some(ViewerAction::ToggleMetadata) => {
+                        self.show_metadata = !self.show_metadata;
+                    }
+                    None => {}
                 }
             }
+        }
 
-            // Global Cmd/Ctrl + I toggle (only meaningful while an image is open).
-            if toggle {
-                if matches!(self.mode, AppMode::Viewing(..)) {
-                    self.show_metadata = !self.show_metadata;
-                }
+        // Global Cmd/Ctrl + I toggle (only meaningful while an image is open).
+        if toggle {
+            if matches!(self.mode, AppMode::Viewing(..)) {
+                self.show_metadata = !self.show_metadata;
             }
-        });
+        }
 
         // Render the "Image Details" panel *inside* the main window as a floating Area,
         // only when requested and an image is currently open.
