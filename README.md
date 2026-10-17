@@ -6,6 +6,17 @@ immediate-mode GUI framework with an optional `EXIF` / metadata inspector.
 This is a small project made with all local LLM as a test.
 I've mainly used Hermes and qwen3.8:27b on a Mac M3 Max.
 
+## Download latest release
+
+- [Mac](dist/rust-image-viewer-macos-universal.app.zip)
+- PC
+
+## Screenshots
+
+![thumbnails view](assets/screenshots/thubnailview.png)
+
+![image view](assets/screenshots/imageview.png)
+
 
 ## Features
 
@@ -27,6 +38,13 @@ I've mainly used Hermes and qwen3.8:27b on a Mac M3 Max.
   window title bar, and Launchpad.
 - **Fast and lightweight**: Rust + `egui` (GPU-accelerated via wgpu) with
   optimized, stripped release binaries.
+
+## Todo
+
+- simple image resize (and bulk resize)
+- Better design for the GUI
+- Build for linux
+- ...
 
 ## Technologies Used
 
