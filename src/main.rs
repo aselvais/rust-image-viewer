@@ -1,3 +1,8 @@
+// On Windows, build as a subsystem=WINDOWS GUI app so launching it doesn't pop a
+// black console window. Gated to Windows only, so the macOS/Linux build is
+// unaffected.
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 mod app;
 mod explorer;
 mod metadata;

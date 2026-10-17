@@ -6,10 +6,12 @@ immediate-mode GUI framework with an optional `EXIF` / metadata inspector.
 This is a small project made with all local LLM as a test.
 I've mainly used Hermes and qwen3.8:27b on a Mac M3 Max.
 
+I wanted to make a very simple and fast image viewer for windows as I was not happy with the current bloated offering.
+
 ## Download latest release
 
-- [Mac](dist/rust-image-viewer-macos-universal.app.zip) 10.9 Mb
-- PC
+- Mac: [rust-image-viewer-macos-universal.app.zip](dist/rust-image-viewer-macos-universal.app.zip) [10.9MB] (22.8MB unpacked)
+- PC: ...
 
 ## Screenshots
 
