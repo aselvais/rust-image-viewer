@@ -10,8 +10,8 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
 
 ## Download latest release
 
-- Mac: [rust-image-viewer-macos-universal.app.zip](dist/rust-image-viewer-macos-universal.app.zip) [10.9MB] (22.8MB unpacked)
-- PC: ...
+- Mac OS : [rust-image-viewer-macos-universal.app.zip](dist/rust-image-viewer-macos-universal.app.zip) [10.9MB] (22.8MB unpacked)
+- Windows: [rust-image-viewer-win-x64.zip](dist/rust-image-viewer-win-x64.zip) [6.4MB] (13.9MB unpacked)
 
 ## Screenshots
 
