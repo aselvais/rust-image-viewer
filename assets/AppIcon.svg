@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7DD3FC"/>
+      <stop offset="52%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1E40AF"/>
+    </linearGradient>
+    <linearGradient id="hillBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6EE7B7"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+    <linearGradient id="hillFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFDF5"/>
+      <stop offset="65%" stop-color="#FEF3C7"/>
+      <stop offset="100%" stop-color="#FCD34D"/>
+    </radialGradient>
+    <clipPath id="tile">
+      <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228"/>
+    </clipPath>
+  </defs>
+
+  <!-- Rounded "photograph" tile. Everything is clipped to it so the artwork reads
+       as an image, not just a scene. -->
+  <g clip-path="url(#tile)">
+    <rect x="0" y="0" width="1024" height="1024" fill="url(#sky)"/>
+
+    <!-- Sun -->
+    <circle cx="720" cy="300" r="116" fill="url(#sun)"/>
+
+    <!-- Distant hills -->
+    <path d="M -40 760 L 360 488 L 640 708 L 900 540 L 1080 660 L 1080 1080 L -40 1080 Z"
+          fill="url(#hillBack)"/>
+
+    <!-- Foreground hill -->
+    <path d="M -40 1080 L 300 720 L 568 908 L 820 716 L 1080 836 L 1080 1080 Z"
+          fill="url(#hillFront)"/>
+  </g>
+
+  <!-- Subtle inner border for a crisp edge. -->
+  <rect x="2" y="2" width="1020" height="1020" rx="226" ry="226"
+        fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="3"/>
+</svg>

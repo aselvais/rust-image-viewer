@@ -14,6 +14,13 @@ immediate-mode GUI framework with an optional `EXIF` / metadata inspector.
 - **Details panel**: shows format, dimensions, megapixels, colour/channels,
   bit depth, file size, last-modified time, and any EXIF metadata — rendered
   **inside** the main window (no separate OS window).
+- **Drag & drop / Open With**: drag a folder or image from the OS (e.g. Finder)
+  straight onto the window, or right-click an image (or folder) and pick
+  **Open With → Rust Image Viewer…**. A dropped or launched folder is *browsed*
+  in the explorer; an image is *opened* for viewing (with its siblings collected
+  for ◀ Prev / Next ▶ navigation).
+- **App icon**: a custom image icon (`assets/AppIcon…`) appears in the Dock, the
+  window title bar, and Launchpad.
 - **Fast and lightweight**: Rust + `egui` (GPU-accelerated via wgpu) with
   optimized, stripped release binaries.
 
@@ -78,9 +85,27 @@ bash scripts/build-macos.sh x86_64     # Intel only
 
 The script `lipo`s both architecture slices into one universal Mach-O, wraps it in
 `Rust Image Viewer.app` with a minimal `Info.plist`, ad-hoc code-signs it, and zips
-it via `ditto`. Drop a real icon at `assets/AppIcon.icns` and it is bundled
-automatically. For public distribution over the internet you'd re-sign with an Apple
-Developer identity and notarize (ad-hoc signing is fine for local testing only).
+it via `ditto`. It also:
+
+- bundles `assets/AppIcon.icns` into the bundle so the app has a proper icon in
+  Finder/Dock/Launchpad;
+- declares `CFBundleDocumentTypes` so right-click → **Open With → Rust Image
+  Viewer…** works for images (and folders) and the app can be set as the default
+  handler;
+- registers the finished `.app` (and its document types) with Launch Services via
+  `lsregister`, so the icon and associations take effect immediately on the
+  machine that built it.
+
+The custom icon lives in `assets/` — `AppIcon.svg` is the source of truth; run
+`bash scripts/make-icon.sh` to regenerate `AppIcon.png` (embedded at compile time
+as the window icon), `AppIcon.icns` (macOS), and `AppIcon.ico` (Windows). For
+public distribution over the internet you'd re-sign with an Apple Developer
+identity and notarize (ad-hoc signing is fine for local testing only).
+
+> **Windows**: the release `exe` gets its window/taskbar icon at compile time from
+> the embedded `assets/AppIcon.png`. Registering the `exe`'s file icon in
+> Explorer and its "Open With" file association in the Windows registry is a
+> follow-up (no change here); drag-and-drop and the in-app icon already work.
 
 ### Windows (build natively on a Windows machine)
 
@@ -136,6 +161,8 @@ cargo test
 - `src/utils.rs` — shared helpers (directory listing, etc.).
 - `src/explorer_new.rs` — an experimental explorer; **not compiled** (not declared in `main.rs`).
 - `scripts/build-macos.sh` — builds and packages the self-contained universal macOS `.app`.
+- `scripts/make-icon.sh` — regenerates the app icons (`png`/`icns`/`ico`) from `assets/AppIcon.svg`.
+- `assets/` — the custom app icon (`AppIcon.svg` artwork + generated `png`/`icns`/`ico`).
 - `.github/workflows/release.yml` — CI that builds self-contained Windows + macOS release artifacts.
 
 ## License

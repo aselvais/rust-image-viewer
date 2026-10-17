@@ -62,19 +62,68 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>CFBundlePackageType</key>       <string>APPL</string>
     <key>CFBundleIconFile</key>          <string>AppIcon</string>
+    <key>CFBundleTypeRole</key>          <string>Editor</string>
+    <key>LSApplicationCategoryType</key> <string>public.app-category.photography</string>
     <key>LSMinimumSystemVersion</key>    <string>12.0</string>
     <key>NSHighResolutionCapable</key>   <true/>
+    <!-- Register the app as a handler for image files (and folders) so that
+         "Right-click > Open With > Rust Image Viewer…" works in Finder and the
+         app can be set as the default. Both modern UTIs (LSItemContentTypes) and
+         legacy extensions (CFBundleTypeExtensions) are declared, the latter so
+         association is reliable even for formats without a system UTI (e.g.
+         webp). `CFBundleTypeRole=Editor` lets it be chosen as the default app. -->
+    <key>CFBundleDocumentTypes</key>
+      <array>
+        <dict>
+          <key>CFBundleTypeName</key>      <string>Image Documents</string>
+          <key>CFBundleTypeRole</key>      <string>Editor</string>
+          <key>LSItemContentTypes</key>
+            <array>
+              <string>public.jpeg</string>
+              <string>public.png</string>
+              <string>public.tiff</string>
+              <string>public.gif</string>
+              <string>public.bmp</string>
+              <string>public.heic</string>
+              <string>public.heif</string>
+              <string>public.folder</string>
+            </array>
+          <key>CFBundleTypeExtensions</key>
+            <array>
+              <string>jpg</string>
+              <string>jpeg</string>
+              <string>png</string>
+              <string>gif</string>
+              <string>bmp</string>
+              <string>webp</string>
+              <string>tif</string>
+              <string>tiff</string>
+              <string>heic</string>
+              <string>heif</string>
+            </array>
+        </dict>
+      </array>
   </dict>
 </plist>
 PLIST
 
-# If an icon was supplied as assets/AppIcon.icns, include it.
+# Bundle the real icon (already copied above if present).
 if [ -f assets/AppIcon.icns ]; then
   cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 fi
 
 # Re-sign ad-hoc so Gatekeeper accepts the locally built app.
 codesign --force --deep --sign - "$APP" || true
+
+# Register the bundle + its document types with Launch Services so the new icon
+# and "Open With …" associations take effect immediately on this machine.
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [ -x "$LSREGISTER" ]; then
+  "$LSREGISTER" -f "$APP" 2>/dev/null || true
+  if "$LSREGISTER" -dump 2>/dev/null | grep -q "com.aselvais.rust-image-viewer"; then
+    echo "Registered with Launch Services."
+  fi
+fi
 
 # Package into a zip that preserves the bundle structure.
 ZIP="$DIST/$BIN-macos-$OUT_ARCH.app.zip"

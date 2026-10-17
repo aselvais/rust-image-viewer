@@ -34,6 +34,38 @@ impl ImageViewerApp {
             meta_for: None,
         }
     }
+
+    /// Open a path — dragged from the OS, passed on the command line, or clicked in
+    /// the explorer. A directory is *browsed*: the explorer switches to it. An image
+    /// is *opened* for viewing, with its sibling images (same directory) collected
+    /// so the ◀ Prev / Next ▶ navigation keeps working.
+    fn open_path(&mut self, path: &PathBuf) {
+        // A dropped/clicked folder: browse it in the explorer.
+        if path.is_dir() {
+            self.explorer.change_dir(path.clone());
+            self.mode = AppMode::Idle;
+            return;
+        }
+
+        if !is_image(path) {
+            // Not a folder and not an image we can open — ignore it.
+            return;
+        }
+
+        // An image: collect its siblings (the directory it lives in) for navigation.
+        let dir = match path.parent() {
+            Some(dir) if !dir.as_os_str().is_empty() => dir.to_path_buf(),
+            _ => return,
+        };
+
+        let images: Vec<PathBuf> = crate::utils::list_directory(&dir)
+            .into_iter()
+            .filter(|info| info.file_type == crate::utils::FileType::File && is_image(&info.path))
+            .map(|info| info.path)
+            .collect();
+
+        self.mode = AppMode::Viewing(Viewer::new(path.clone()), images);
+    }
 }
 
 impl eframe::App for ImageViewerApp {
@@ -41,25 +73,25 @@ impl eframe::App for ImageViewerApp {
         // Global shortcut: Cmd/Ctrl + I toggles the details panel (only when an image is open).
         let toggle = ui.input(|i| i.key_pressed(egui::Key::I) && i.modifiers.command);
 
+        // Files/directories dragged from the OS (e.g. Finder onto the window)
+        // arrive as per-frame input. A dropped folder is browsed; a dropped image
+        // is opened. Routed through the same helper the explorer uses, so it works
+        // in both the browsing and viewing states.
+        let dropped: Vec<PathBuf> =
+            ui.input(|i| i.raw.dropped_files.iter().map(|f| f.path().to_path_buf()).collect());
+        if let Some(path) = dropped.first() {
+            self.open_path(&path);
+        }
+
         match &mut self.mode {
             AppMode::Idle => {
                 egui::CentralPanel::default().show(ui, |ui| {
                     if let Some(action) = self.explorer.ui(ui) {
                         match action {
-                            ExplorerAction::EnterDirectory(path) => {
-                                self.explorer.change_dir(path.clone());
-                            }
-                            ExplorerAction::OpenFile(path) => {
-                                // Collect images in the current directory to allow next/prev navigation.
-                                let images: Vec<PathBuf> = crate::utils::list_directory(&self.explorer.current_dir)
-                                    .into_iter()
-                                    .filter(|info| info.file_type == crate::utils::FileType::File && is_image(&info.path))
-                                    .map(|info| info.path)
-                                    .collect();
-
-                                if !images.is_empty() {
-                                    self.mode = AppMode::Viewing(Viewer::new(path.clone()), images);
-                                }
+                            // Both cases resolve to the same helper, which also powers
+                            // drag-and-drop from the OS.
+                            ExplorerAction::EnterDirectory(path) | ExplorerAction::OpenFile(path) => {
+                                self.open_path(&path);
                             }
                             ExplorerAction::None => {}
                         }
