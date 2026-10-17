@@ -8,13 +8,12 @@ I've mainly used Hermes and qwen3.8:27b on a Mac M3 Max.
 
 ## Download latest release
 
-- [Mac](dist/rust-image-viewer-macos-universal.app.zip)
+- [Mac](dist/rust-image-viewer-macos-universal.app.zip) 10.9 Mb
 - PC
 
 ## Screenshots
 
 ![thumbnails view](assets/screenshots/thubnailview.png)
-
 ![image view](assets/screenshots/imageview.png)
 
 
