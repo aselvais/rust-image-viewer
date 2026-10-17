@@ -3,6 +3,10 @@
 A simple and lightweight image viewer written in Rust, built on the `egui`
 immediate-mode GUI framework with an optional `EXIF` / metadata inspector.
 
+This is a small project made with all local LLM as a test.
+I've mainly used Hermes and qwen3.8:27b on a Mac M3 Max.
+
+
 ## Features
 
 - **File Explorer**: navigate directories to find images.
