@@ -10,6 +10,13 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
 
 ## What's new
 
+- **Full 5-platform release matrix + aarch64 Linux** — all five targets now build
+  clean: macOS **arm64 + x86_64** (native `cargo build`) and Linux **x86_64 +
+  aarch64** and **Windows x64** (cross-compiled with `cargo-zigbuild`, Zig 0.17.0,
+  which supplies the glibc / MSVC sysroot the linker needs). The **aarch64 Linux**
+  package (`rust-image-viewer-linux-aarch64.zip` / `.tar.gz`) is new, mirroring the
+  x86_64 one; per-platform sizes and SHA-256 checksums are in the
+  **Download latest release** section below.
 - **Linux build added** — there is now a native Linux release
   (`x86_64-unknown-linux-gnu`, glibc) via `scripts/build-linux.sh` plus a
   `build-linux` CI job. Because `winit`/`wgpu` load X11/Wayland/GL/Vulkan
@@ -24,9 +31,57 @@ I wanted to make a very simple and fast image viewer for windows as I was not ha
 
 ## Download latest release
 
-- Linux: [rust-image-viewer-linux-x86_64.zip](dist/rust-image-viewer-linux-x86_64.zip) / [rust-image-viewer-linux-x86_64.tar.gz](dist/rust-image-viewer-linux-x86_64.tar.gz) [8.0MB] (17.8MB unpacked, glibc x86_64)
-- Mac OS : [rust-image-viewer-macos-universal.app.zip](dist/rust-image-viewer-macos-universal.app.zip) [10.9MB] (22.8MB unpacked)
-- Windows: [rust-image-viewer-win-x64.zip](dist/rust-image-viewer-win-x64.zip) [6.4MB] (13.9MB unpacked)
+Self-contained packages are in [`dist/`](dist/). All builds are **v0.1.0**.
+Unpacked sizes are the binary plus the bundled `AppIcon.png` / `README.txt` /
+`.desktop` launcher.
+
+| Platform | Download | Archive size | SHA-256 |
+| --- | --- | --- | --- |
+| **Linux** x86_64 (glibc) | [`.zip`](dist/rust-image-viewer-linux-x86_64.zip) · [`.tar.gz`](dist/rust-image-viewer-linux-x86_64.tar.gz) | 8.0 MiB | `2314ff88…` / `5193d9d8…` |
+| **Linux** aarch64 (glibc) | [`.zip`](dist/rust-image-viewer-linux-aarch64.zip) · [`.tar.gz`](dist/rust-image-viewer-linux-aarch64.tar.gz) | 8.6 MiB | `649b3c5d…` / `c5ef537c…` |
+| **macOS** universal (arm64 + x86_64) | [`rust-image-viewer-macos-universal.app.zip`](dist/rust-image-viewer-macos-universal.app.zip) | 10.5 MiB | `5703ebdd…` |
+| **Windows** x64 | [`rust-image-viewer-win-x64.zip`](dist/rust-image-viewer-win-x64.zip) | 6.1 MiB | `1054f8e4…` |
+
+- **Linux**: a stripped glibc ELF (~18 MiB unpacked) that needs only a desktop
+  environment — X11/Wayland/GL/Vulkan are loaded at run time. Each `.zip`/`.tar.gz`
+  bundles the binary, `AppIcon.png`, `README.txt`, and a `Rust Image Viewer.desktop`
+  launcher with a no-root install snippet.
+- **macOS**: a universal `.app` (~22 MiB unpacked), ad-hoc signed — runs on
+  Apple Silicon *and* Intel.
+- **Windows**: x64 `exe` (~14 MiB unpacked) **with the MSVC/UCRT runtime DLLs
+  bundled** (via `deploy`), so it runs on a bare Windows install.
+
+### Release build matrix (v0.1.0)
+
+All five targets build clean and ship **stripped**. macOS targets are built
+natively with `cargo build`; the Linux and Windows targets are cross-compiled with
+[`cargo-zigbuild`](https://github.com/rust-cross/cargo-zigbuild) (Zig 0.17.0).
+
+| Target triple | Size | Built with | SHA-256 |
+| --- | --- | --- | --- |
+| `aarch64-apple-darwin` | 10.2 MiB | `cargo build` (arm64 Mac) | `a610d542…` |
+| `x86_64-apple-darwin` | 11.5 MiB | `cargo build` (x86_64 Mac) | `c79360e5…` |
+| `x86_64-unknown-linux-gnu` | 17.9 MiB | `cargo-zigbuild` (Zig) | `d5297e3c…` |
+| `aarch64-unknown-linux-gnu` | 17.9 MiB | `cargo-zigbuild` (Zig) | `519b7393…` |
+| `x86_64-pc-windows-gnu` | 13.4 MiB | `cargo-zigbuild` (Zig) | `276c8bc8…` |
+
+The raw release binaries live under `target/<triple>/release/` (git-ignored); the
+packaged downloads in the table above are the shareable artifacts.
+
+### Verify a download
+
+Run this from the `dist/` directory (uses the full SHA-256 of each package):
+
+```sh
+shasum -a256 -c <<'EOF'
+2314ff88528b26760ae1e0bbc5d64ffb52f6fd71aaea98372bf136e34e913a01  rust-image-viewer-linux-x86_64.zip
+5193d9d8f4db22b83fd49563b5d8adbf0a831a2533071b65008bb1e108e177ee  rust-image-viewer-linux-x86_64.tar.gz
+649b3c5d5df8854c5c7c91fa0b240a21bf9928b6b8f1cfd8a5d1f1a3225f0297  rust-image-viewer-linux-aarch64.zip
+c5ef537c498f149588b2c30f22d5d8c975771939e5f2b568753712c69eefd545  rust-image-viewer-linux-aarch64.tar.gz
+5703ebdda6644cce60cb641225d33efc79cdd18fd275846b9db96d3a23ffd142  rust-image-viewer-macos-universal.app.zip
+1054f8e46975c54b2b139ff29e24f7fe4d76efe2adcfd3cb1ef7683bfb75c411  rust-image-viewer-win-x64.zip
+EOF
+```
 
 ## Screenshots
 
@@ -269,6 +324,34 @@ cargo test
 - `scripts/make-icon.sh` — regenerates the app icons (`png`/`icns`/`ico`) from `assets/AppIcon.svg`.
 - `assets/` — the custom app icon (`AppIcon.svg` artwork + generated `png`/`icns`/`ico`, plus `AppIcon.png` embedded at compile time as the window icon).
 - `.github/workflows/release.yml` — CI that builds self-contained **Linux + Windows + macOS** release artifacts.
+
+## Changelog
+
+All notable changes are recorded here, newest first.
+
+### 2026-10-18 — v0.1.0
+
+#### Added
+- **aarch64 Linux release** — `rust-image-viewer-linux-aarch64.zip` / `.tar.gz`
+  now ship alongside the x86_64 Linux build, completing the five-platform matrix.
+  The aarch64 target is cross-compiled with `cargo-zigbuild` (Zig 0.17.0).
+- **Selection modal with bulk operations** — pick several thumbnails and run one
+  action across all of them: **delete**, **rotate 90°** (clockwise /
+  counter-clockwise), **resize** to a target width, or **convert to JPEG**. The
+  logic lives in a new UI-free, unit-tested `src/image_ops.rs` module; a single
+  corrupt or unwritable file is reported instead of aborting the whole batch, and
+  the outcome is shown in a transient message bar.
+- **Native Linux build + `build-linux` CI job** — `x86_64-unknown-linux-gnu`
+  (glibc) via `scripts/build-linux.sh`, plus a `build-linux` job in the release
+  workflow.
+- **Comprehensive download documentation** — a "Download latest release" section
+  with per-platform archive sizes and SHA-256 checksums, a "Verify a download"
+  section, and a "Reproducing the artifacts" section.
+
+#### Fixed
+- **Windows image previews** — thumbnails and the main viewer now load on Windows.
+  The `file://` image URI is normalised to `file:///C:/…` so `egui_extras` can
+  resolve local paths; before this they showed broken-image placeholders.
 
 ## License
 
