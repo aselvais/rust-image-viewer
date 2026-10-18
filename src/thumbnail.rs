@@ -77,8 +77,16 @@ pub fn resize_rgba(path: &Path, cap: u32) -> Decoded {
 
     // `Triangle` gives a clean, fast thumbnail without the ring artefacts of a
     // Catmull-Rom downscale.
-    let rgba = decoded.resize(nw, nh, Triangle).to_rgba8();
-    Ok((nw, nh, rgba.into_raw()))
+    //
+    // Crucially, we then read the *actual* dimensions off the resized buffer
+    // rather than reusing `nw`/`nh`. `image::resize` can land a pixel or two
+    // short of what our arithmetic computed (the filter's own rounding), and if
+    // we ever hand egui a `(w, h)` that disagrees with the buffer's real length,
+    // `ColorImage::from_rgba_unmultiplied` asserts `rgba.len() == w*h*4` and
+    // panics — unwinding straight through the UI loop. That mismatch is the crash.
+    let resized = decoded.resize(nw, nh, Triangle).to_rgba8();
+    let (cw, ch) = resized.dimensions();
+    Ok((cw, ch, resized.into_raw()))
 }
 
 // ---------------------------------------------------------------------------
@@ -171,13 +179,26 @@ pub fn advance(
 fn drain(rx: DecodeChannel, ctx: &egui::Context, seq: &mut u64) -> Thumb {
     match rx.try_recv() {
         Ok(Ok((w, h, rgba))) => {
-            let image = ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba);
-            // A fresh, unique texture per image (names are monotonic so caching by
-            // path never collides). The old handle for this path (if any) was
-            // dropped when we cleared the map, freeing its texture.
-            *seq += 1;
-            let handle = ctx.load_texture(format!("thumb-{seq}"), image, TextureOptions::default());
-            Thumb::Ready(handle)
+            // Build the texture on the UI thread, inside a `catch_unwind`. The
+            // buffer already carries its own real dimensions, so this path is safe
+            // in practice — but this is the last line of defence: a driver limit,
+            // a weird colour space, or an unforeseen egui assertion in the
+            // *construction* step degrades this one cell to a placeholder instead
+            // of letting the panic unwind through egui's event loop and quit the
+            // whole app. That is the "nice way to handle such errors" the bug
+            // report asked for.
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                let image = ColorImage::from_rgba_unmultiplied([w as usize, h as usize], &rgba);
+                // A fresh, unique texture per image (names are monotonic so
+                // caching by path never collides). The old handle for this path,
+                // if any, was dropped when we cleared the map.
+                *seq += 1;
+                let name = format!("thumb-{}", *seq);
+                ctx.load_texture(name, image, TextureOptions::default())
+            })) {
+                Ok(handle) => Thumb::Ready(handle),
+                Err(_) => Thumb::Broken("problem generating this preview".into()),
+            }
         }
         Ok(Err(reason)) => Thumb::Broken(reason),
         // The worker is still running — keep it in flight; it'll be drained later.
@@ -289,6 +310,45 @@ mod tests {
             tw.min(th),
             expected_short,
             "short side should scale in ratio, got {tw}x{th}"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn resized_buffer_dimensions_match_what_egui_will_build() {
+        // Regression guard for the crash we just fixed. An earlier version
+        // computed the thumbnail's (w, h) on its own and handed *that* pair to
+        // egui, while `image::resize` actually produced a buffer a pixel or two
+        // smaller (the filter's own rounding). egui then asserted
+        // `rgba.len() == w*h*4`, failed, and the panic unwound through the UI
+        // loop and quit the whole app. Guard: the dims we return are the buffer's
+        // *actual* dims, and building the texture from them never panics. 5402x472
+        // at cap 1024 specifically reproduces the 1019/89 the filter hit on a real
+        // file in the user's folder.
+        let (w, h) = (5402u32, 472u32);
+        let path = std::env::temp_dir().join(format!("rive_dim_{}_{}.png", w, std::process::id()));
+        let src = image::RgbaImage::from_pixel(w, h, image::Rgba([90, 120, 160, 255]));
+        image::save_buffer(&path, &src, w, h, image::ColorType::Rgba8).expect("write png");
+
+        let (tw, th, rgba) = resize_rgba(&path, THUMB_CAP).expect("resize ok");
+
+        // THE invariant the crash violated: the reported dims must match the
+        // buffer's real length. If they ever disagree again, this fails.
+        assert_eq!(
+            rgba.len(),
+            tw as usize * th as usize * 4,
+            "buffer length must match the reported {tw}x{th} texture; that mismatch is the crash",
+        );
+        // The exact constructor egui uses must build without panicking.
+        let build = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            // `tw`/`th` are `Copy`, so they survive the `move` closure; `rgba` is moved in.
+            egui::ColorImage::from_rgba_unmultiplied([tw as usize, th as usize], &rgba);
+        }));
+        build.expect("ColorImage must build from the returned buffer without panicking");
+        assert!(
+            tw.max(th) <= THUMB_CAP,
+            "long side must be capped at or under {THUMB_CAP}, got {tw}x{th}"
         );
 
         let _ = std::fs::remove_file(&path);
