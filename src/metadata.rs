@@ -55,10 +55,7 @@ impl ImageMetadata {
         // On-disk size, if any.
         if let Ok(m) = std::fs::metadata(path) {
             meta.file_size = m.len();
-            meta.modified = m
-                .modified()
-                .ok()
-                .map(|t| fmt_modified_utc(t));
+            meta.modified = m.modified().ok().map(|t| fmt_modified_utc(t));
         }
 
         // Read the whole file once: reused for format detection, decoding and EXIF.
@@ -125,11 +122,13 @@ fn human_format(fmt: Option<&image::ImageFormat>) -> String {
         image::ImageFormat::Farbfeld => "Farbfeld",
         image::ImageFormat::Avif => "AVIF",
         image::ImageFormat::Qoi => "QOI",
-        _ => return fmt
-            .extensions_str()
-            .first()
-            .map(|e| e.to_string())
-            .unwrap_or_else(|| "unknown".into()),
+        _ => {
+            return fmt
+                .extensions_str()
+                .first()
+                .map(|e| e.to_string())
+                .unwrap_or_else(|| "unknown".into())
+        }
     }
     .to_string()
 }
@@ -176,7 +175,9 @@ fn extract_exif(bytes: &[u8], format: Option<image::ImageFormat>) -> Vec<(String
             // JPEG: EXIF lives in the APP1 segment.
             let mut reader = std::io::BufReader::new(bytes);
             match exif::get_exif_attr_from_jpeg(&mut reader) {
-                Ok(seg) if !seg.is_empty() => exif::parse_exif(&seg).map(|(f, _)| f).unwrap_or_default(),
+                Ok(seg) if !seg.is_empty() => {
+                    exif::parse_exif(&seg).map(|(f, _)| f).unwrap_or_default()
+                }
                 _ => Vec::new(),
             }
         }
@@ -256,7 +257,11 @@ mod tests {
         img.save(&path).expect("write test png");
 
         let meta = ImageMetadata::load(path.as_ref());
-        assert!(meta.decode_error.is_none(), "decode_error: {:?}", meta.decode_error);
+        assert!(
+            meta.decode_error.is_none(),
+            "decode_error: {:?}",
+            meta.decode_error
+        );
         assert_eq!(meta.width, 320);
         assert_eq!(meta.height, 240);
         assert_eq!(meta.format, "PNG");
@@ -320,10 +325,22 @@ mod tests {
         }
 
         let meta = ImageMetadata::load(src.as_ref());
-        assert!(meta.decode_error.is_none(), "decode_error: {:?}", meta.decode_error);
-        assert!(!meta.exif.is_empty(), "expected some EXIF fields to be extracted");
+        assert!(
+            meta.decode_error.is_none(),
+            "decode_error: {:?}",
+            meta.decode_error
+        );
+        assert!(
+            !meta.exif.is_empty(),
+            "expected some EXIF fields to be extracted"
+        );
 
-        let joined = meta.exif.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", ");
+        let joined = meta
+            .exif
+            .iter()
+            .map(|(n, _)| n.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
         // At least one of the tags we wrote should come back as a human name.
         let ok = joined.contains("Artist")
             || joined.contains("ImageDescription")

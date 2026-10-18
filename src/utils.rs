@@ -40,12 +40,10 @@ pub fn list_directory(dir: &Path) -> Vec<FileInfo> {
     }
 
     // Sort: Directories first, then files
-    entries.sort_by(|a, b| {
-        match (&a.file_type, &b.file_type) {
-            (FileType::Directory, FileType::File) => std::cmp::Ordering::Less,
-            (FileType::File, FileType::Directory) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
+    entries.sort_by(|a, b| match (&a.file_type, &b.file_type) {
+        (FileType::Directory, FileType::File) => std::cmp::Ordering::Less,
+        (FileType::File, FileType::Directory) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
     entries

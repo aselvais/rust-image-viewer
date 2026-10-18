@@ -6,6 +6,7 @@
 mod app;
 mod explorer;
 mod metadata;
+mod thumbnail;
 mod utils;
 mod viewer;
 
@@ -18,9 +19,8 @@ use std::path::PathBuf;
 fn main() -> eframe::Result<()> {
     // Decide where to start: a path dropped from the OS or passed on the
     // command line, falling back to the current working directory.
-    let initial_dir = initial_path().unwrap_or_else(|| {
-        env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-    });
+    let initial_dir =
+        initial_path().unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
     let options = NativeOptions {
         viewport: egui::ViewportBuilder::default()

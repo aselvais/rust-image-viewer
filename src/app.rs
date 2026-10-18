@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::explorer::{Explorer, ExplorerAction};
 use crate::metadata::ImageMetadata;
-use crate::viewer::{Viewer, ViewerAction};
 use crate::utils::is_image;
+use crate::viewer::{Viewer, ViewerAction};
 use eframe::egui;
 
 pub enum AppMode {
@@ -77,8 +77,13 @@ impl eframe::App for ImageViewerApp {
         // arrive as per-frame input. A dropped folder is browsed; a dropped image
         // is opened. Routed through the same helper the explorer uses, so it works
         // in both the browsing and viewing states.
-        let dropped: Vec<PathBuf> =
-            ui.input(|i| i.raw.dropped_files.iter().map(|f| f.path().to_path_buf()).collect());
+        let dropped: Vec<PathBuf> = ui.input(|i| {
+            i.raw
+                .dropped_files
+                .iter()
+                .map(|f| f.path().to_path_buf())
+                .collect()
+        });
         if let Some(path) = dropped.first() {
             self.open_path(&path);
         }
@@ -90,7 +95,8 @@ impl eframe::App for ImageViewerApp {
                         match action {
                             // Both cases resolve to the same helper, which also powers
                             // drag-and-drop from the OS.
-                            ExplorerAction::EnterDirectory(path) | ExplorerAction::OpenFile(path) => {
+                            ExplorerAction::EnterDirectory(path)
+                            | ExplorerAction::OpenFile(path) => {
                                 self.open_path(&path);
                             }
                             ExplorerAction::None => {}
@@ -187,7 +193,10 @@ impl eframe::App for ImageViewerApp {
                                     ui.with_layout(
                                         egui::Layout::right_to_left(egui::Align::Min),
                                         |ui| {
-                                            if ui.button(egui::RichText::new("✕").size(15.0)).clicked() {
+                                            if ui
+                                                .button(egui::RichText::new("✕").size(15.0))
+                                                .clicked()
+                                            {
                                                 closed = true;
                                             }
                                         },
@@ -243,7 +252,11 @@ fn render_metadata_panel(ui: &mut egui::Ui, meta: &ImageMetadata) {
                         "Bit depth",
                         &format!("{}/component (bits)", meta.bit_depth),
                     );
-                    meta_row(ui, "File size", &crate::metadata::format_bytes(meta.file_size));
+                    meta_row(
+                        ui,
+                        "File size",
+                        &crate::metadata::format_bytes(meta.file_size),
+                    );
                     if let Some(m) = &meta.modified {
                         meta_row(ui, "Last modified", m);
                     }
@@ -251,9 +264,7 @@ fn render_metadata_panel(ui: &mut egui::Ui, meta: &ImageMetadata) {
 
             ui.separator();
             if meta.exif.is_empty() {
-                ui.label(
-                    egui::RichText::new("EXIF data: none found").weak(),
-                );
+                ui.label(egui::RichText::new("EXIF data: none found").weak());
             } else {
                 ui.label(
                     egui::RichText::new(format!("EXIF data ({} fields)", meta.exif.len())).strong(),
