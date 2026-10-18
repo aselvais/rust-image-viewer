@@ -5,6 +5,7 @@
 
 mod app;
 mod explorer;
+mod image_ops;
 mod metadata;
 mod thumbnail;
 mod utils;
